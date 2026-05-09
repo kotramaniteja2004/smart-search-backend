@@ -1,5 +1,6 @@
 import json
 from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from PIL import Image
 import io
@@ -15,19 +16,29 @@ GOOGLE_API_KEY = "AIzaSyCVBozxMSHn7oNlYGc5nmqjVJ45rY8G3Uc"
 BASE_IMAGE_FOLDER = "uploaded_images"
 METADATA_FILE = "metadata.json"
 
+# 🚀 GLOBAL MEMORY: This keeps your photos synced even if the file system is slow
+live_metadata = {}
+
 class SearchRequest(BaseModel):
     query: str
 
 def load_metadata():
+    global live_metadata
+    if live_metadata: return live_metadata # Use memory if available
+    
     if os.path.exists(METADATA_FILE):
         try:
             with open(METADATA_FILE, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                live_metadata = data
+                return data
         except:
             return {}
     return {}
 
 def save_metadata(data):
+    global live_metadata
+    live_metadata = data
     with open(METADATA_FILE, "w") as f:
         json.dump(data, f)
 
@@ -57,14 +68,17 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
         metadata[user_id][photo_id] = description
         save_metadata(metadata)
         
-        return {"status": "success", "description": description}
+        print(f"✅ Synced: {photo_id} for User: {user_id}")
+        return {"status": "success", "count": len(metadata[user_id])}
     except Exception as e:
+        print(f"❌ Sync Error: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/synced-photos")
 async def get_synced_photos(user_id: str):
     metadata = load_metadata()
     user_data = metadata.get(user_id, {})
+    print(f"🔍 Fetching count for {user_id}: {len(user_data)} found.")
     return {"synced_ids": list(user_data.keys())}
 
 def verify_match(photo_id, description, query, user_id):
@@ -82,7 +96,8 @@ def verify_match(photo_id, description, query, user_id):
     try:
         resp = requests.post(url, json=payload).json()
         text = resp['candidates'][0]['content']['parts'][0]['text']
-        # Fixed the line that caused the syntax error
+        
+        # 🚀 THIS IS THE FIXED LINE! All on one single line.
         clean_text = text.replace('```json', '').replace('```', '').strip()
         data = json.loads(clean_text)
         
@@ -125,4 +140,9 @@ async def search_and_extract(user_id: str, request: SearchRequest):
     if not results:
         return {"error": f"No matches found for '{request.query}'"}
         
+    results.sort(key=lambda x: 1 if x.get('is_receipt') else 0, reverse=True)
     return {"results": results}
+
+@app.get("/images/{user_id}/{photo_id}")
+async def get_image(user_id: str, photo_id: str):
+    return FileResponse(os.path.join(BASE_IMAGE_FOLDER, user_id, f"{photo_id}.jpg"))
