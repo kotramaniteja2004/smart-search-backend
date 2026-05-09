@@ -14,7 +14,7 @@ app = FastAPI(title="AI Smart Search - Supabase Edition")
 # --- CONFIGURATION ---
 # Replace these with your actual Supabase details
 SUPABASE_URL = "https://wnzwkbcoxaxfulmyazwn.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduendrYmNveGF4ZnVsbXlhenduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNDExNDAsImV4cCI6MjA5MzkxNzE0MH0.A-GydOm-6-Fieq6BhT3oG6Lj2QWwcCU0fd9SzdSi8I0"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduendrYmNveGF4ZnVsbXlhenduIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODM0MTE0MCwiZXhwIjoyMDkzOTE3MTQwfQ.ak8-5FAOuY7a8tLr1E6f5aYg81jbBhS3Z0PiEVI84ks"
 GOOGLE_API_KEY = "AIzaSyAVq0UMANz7ttMxspV587u6hGKQjE1ADe0".strip()
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -58,6 +58,7 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
 
         return {"status": "success", "url": image_url}
     except Exception as e:
+        print(f"❌ SUPABASE/GEMINI ERROR: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/synced-photos")
