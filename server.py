@@ -12,7 +12,7 @@ import concurrent.futures
 app = FastAPI(title="Cloud AI Search")
 
 # Configuration
-GOOGLE_API_KEY = "AIzaSyCVBozxMSHn7oNlYGc5nmqjVJ45rY8G3Uc".strip()
+GOOGLE_API_KEY = "AIzaSyAVq0UMANz7ttMxspV587u6hGKQjE1ADe0".strip()
 BASE_IMAGE_FOLDER = "uploaded_images"
 METADATA_FILE = "metadata.json"
 
