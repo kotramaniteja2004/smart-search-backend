@@ -42,6 +42,9 @@ def save_metadata(data):
     with open(METADATA_FILE, "w") as f:
         json.dump(data, f)
 
+
+
+
 @app.post("/sync-photo")
 async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str = Form(...)):
     user_folder = os.path.join(BASE_IMAGE_FOLDER, user_id)
@@ -60,7 +63,16 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
     payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": base64_image}}]}]}
     
     try:
-        response = requests.post(url, json=payload).json()
+        raw_response = requests.post(url, json=payload)
+        response = raw_response.json()
+        
+        # 🚀 THE FIX: Check if Google sent an error instead of a success message
+        if 'error' in response:
+            error_msg = response['error'].get('message', 'Unknown Google Error')
+            print(f"🛑 Google API Rejected Request: {error_msg}")
+            return {"status": "error", "message": f"Google Error: {error_msg}"}
+            
+        # If no error, proceed as normal
         description = response['candidates'][0]['content']['parts'][0]['text']
         
         metadata = load_metadata()
@@ -71,8 +83,11 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
         print(f"✅ Synced: {photo_id} for User: {user_id}")
         return {"status": "success", "count": len(metadata[user_id])}
     except Exception as e:
-        print(f"❌ Sync Error: {e}")
+        print(f"❌ Server Crash during sync: {e}")
         return {"status": "error", "message": str(e)}
+
+
+        
 
 @app.get("/synced-photos")
 async def get_synced_photos(user_id: str):
