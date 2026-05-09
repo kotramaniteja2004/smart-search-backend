@@ -45,6 +45,13 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
         payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": base64_image}}]}]}
         
         resp = requests.post(gemini_url, json=payload).json()
+        
+# 👇 NEW SAFETY CHECK: Catch Google's error before it crashes 👇
+        if 'error' in resp:
+            error_msg = resp['error'].get('message', 'Unknown Google Error')
+            print(f"🛑 GEMINI API REJECTED: {error_msg}")
+            return {"status": "error", "message": error_msg}
+            
         description = resp['candidates'][0]['content']['parts'][0]['text']
 
         # 4. Save Metadata to Supabase Database
