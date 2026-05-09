@@ -12,7 +12,7 @@ import concurrent.futures
 app = FastAPI(title="Cloud AI Search")
 
 # Configuration
-GOOGLE_API_KEY = "AIzaSyCVBozxMSHn7oNlYGc5nmqjVJ45rY8G3Uc"
+GOOGLE_API_KEY = "AIzaSyCVBozxMSHn7oNlYGc5nmqjVJ45rY8G3Uc".strip()
 BASE_IMAGE_FOLDER = "uploaded_images"
 METADATA_FILE = "metadata.json"
 
@@ -59,7 +59,7 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
     prompt = "Describe this image in 50 words for a search index. Include colors, objects, and any text/prices seen."
     
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GOOGLE_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GOOGLE_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": base64_image}}]}]}
     
     try:
@@ -105,7 +105,7 @@ def verify_match(photo_id, description, query, user_id):
 
     prompt = f'User search: "{query}". Photo description: "{description}". Match? Reply ONLY JSON: {{"match": bool, "is_receipt": bool, "vendor": str, "total_price": str, "description": str}}'
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GOOGLE_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GOOGLE_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": base64_image}}]}]}
     
     try:
