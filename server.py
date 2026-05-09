@@ -18,11 +18,13 @@ METADATA_FILE = "metadata.json"
 class SearchRequest(BaseModel):
     query: str
 
-# Helper to save/load metadata
 def load_metadata():
     if os.path.exists(METADATA_FILE):
-        with open(METADATA_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(METADATA_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {}
     return {}
 
 def save_metadata(data):
@@ -40,7 +42,6 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
     image_path = os.path.join(user_folder, f"{photo_id}.jpg")
     image.save(image_path, optimize=True, quality=85)
     
-    # 🚀 CLOUD BRAIN: Ask Gemini to "memorize" what is in this photo
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
     prompt = "Describe this image in 50 words for a search index. Include colors, objects, and any text/prices seen."
     
@@ -67,12 +68,13 @@ async def get_synced_photos(user_id: str):
     return {"synced_ids": list(user_data.keys())}
 
 def verify_match(photo_id, description, query, user_id):
-    # This function uses Gemini to check if the specific photo matches the user's search
     file_path = os.path.join(BASE_IMAGE_FOLDER, user_id, f"{photo_id}.jpg")
+    if not os.path.exists(file_path): return None
+    
     with open(file_path, "rb") as img:
         base64_image = base64.b64encode(img.read()).decode("utf-8")
 
-    prompt = f'User is searching for: "{query}". Does this photo description match? "{description}". Reply ONLY in JSON: {{"match": bool, "is_receipt": bool, "vendor": str, "total_price": str, "description": str}}'
+    prompt = f'User search: "{query}". Photo description: "{description}". Match? Reply ONLY JSON: {{"match": bool, "is_receipt": bool, "vendor": str, "total_price": str, "description": str}}'
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GOOGLE_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": base64_image}}]}]}
@@ -80,9 +82,10 @@ def verify_match(photo_id, description, query, user_id):
     try:
         resp = requests.post(url, json=payload).json()
         text = resp['candidates'][0]['content']['parts'][0]['text']
-        data = json.loads(text.replace('```json', '').replace('
-', '').strip())
-
+        # Fixed the line that caused the syntax error
+        clean_text = text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(clean_text)
+        
         if not data.get('match', False): return None
         
         return {
@@ -90,7 +93,7 @@ def verify_match(photo_id, description, query, user_id):
             "image_base64": base64_image,
             "is_receipt": data.get('is_receipt', False),
             "vendor": data.get('vendor', 'Unknown'),
-            "total_price": data.get('total_price', '0'),
+            "total_price": str(data.get('total_price', '0')),
             "non_receipt_description": data.get('description', description)
         }
     except: return None
@@ -103,14 +106,12 @@ async def search_and_extract(user_id: str, request: SearchRequest):
     if not user_photos:
         return {"error": "No photos synced yet!"}
 
-    # Narrow down potential matches by simple keyword check first to save API costs
     query_words = request.query.lower().split()
     potential_ids = []
     for pid, desc in user_photos.items():
         if any(word in desc.lower() for word in query_words):
             potential_ids.append((pid, desc))
     
-    # If no keywords match, try the top 5 most recent anyway
     if not potential_ids:
         potential_ids = list(user_photos.items())[-5:]
 
@@ -125,7 +126,3 @@ async def search_and_extract(user_id: str, request: SearchRequest):
         return {"error": f"No matches found for '{request.query}'"}
         
     return {"results": results}
-
-@app.get("/images/{user_id}/{photo_id}")
-async def get_image(user_id: str, photo_id: str):
-    return FileResponse(os.path.join(BASE_IMAGE_FOLDER, user_id, f"{photo_id}.jpg"))
