@@ -4,6 +4,6 @@ python-multipart
 Pillow
 transformers
 requests
-# 🚀 Pro-Tip: We specifically ask for the CPU version of PyTorch here. 
-# The GPU version is 4GB+ and will crash free cloud servers!
-torch --index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
