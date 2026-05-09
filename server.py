@@ -54,6 +54,8 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
             "description": description
         }).execute()
 
+        print(f"✅ Synced: {photo_id} for User: {user_id}")
+
         return {"status": "success", "url": image_url}
     except Exception as e:
         return {"status": "error", "message": str(e)}
