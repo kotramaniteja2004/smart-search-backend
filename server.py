@@ -15,7 +15,10 @@ app = FastAPI(title="AI Smart Search - Supabase Edition")
 # Replace these with your actual Supabase details
 SUPABASE_URL = "https://wnzwkbcoxaxfulmyazwn.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduendrYmNveGF4ZnVsbXlhenduIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODM0MTE0MCwiZXhwIjoyMDkzOTE3MTQwfQ.ak8-5FAOuY7a8tLr1E6f5aYg81jbBhS3Z0PiEVI84ks"
-GOOGLE_API_KEY = "AIzaSyBgKc5bQy3g6tBMMzpwvY5uYQ5WxEQ9txQ".strip()
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+
+if not GOOGLE_API_KEY:
+    print("🚨 CRITICAL: Gemini API Key is missing from Render Environment Variables!")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -75,6 +78,7 @@ async def get_synced_photos(user_id: str):
     response = supabase.table("metadata").select("photo_id").eq("user_id", user_id).execute()
     ids = [item['photo_id'] for item in response.data]
     return {"synced_ids": ids}
+
 
 def verify_match(item, query):
     photo_id = item['photo_id']
