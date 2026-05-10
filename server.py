@@ -32,7 +32,8 @@ async def sync_photo(user_id: str, file: UploadFile = File(...), photo_id: str =
         supabase.storage.from_("photos").upload(
             path=file_path,
             file=image_bytes,
-            file_options={"content-type": "image/jpeg"}
+        
+            file_options={"content-type": "image/jpeg", "upsert": "true"}
         )
         
         # 2. Get Public URL for the image
