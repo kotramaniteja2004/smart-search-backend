@@ -77,45 +77,56 @@ async def get_synced_photos(user_id: str):
     return {"synced_ids": ids}
 
 def verify_match(item, query):
-    # item contains: photo_id, user_id, description
     photo_id = item['photo_id']
     user_id = item['user_id']
     description = item['description']
     
-    # Get image from storage to show Gemini for verification
+    # Get permanent image URL
     file_path = f"{user_id}/{photo_id}.jpg"
     image_url = supabase.storage.from_("photos").get_public_url(file_path)
     
-    # Simple keyword filter first
-    if not any(word in description.lower() for word in query.lower().split()):
-        return None
-
-    # Ask Gemini if it's a match
-    prompt = f'Search: "{query}". Desc: "{description}". Match? Reply ONLY JSON: {{"match": bool, "is_receipt": bool, "vendor": str, "total_price": str}}'
+    # REMOVED the "dumb" keyword filter! Let's let the AI decide.
+    prompt = f'User searched for: "{query}". Image Description: "{description}". Is this a match? Reply ONLY JSON: {{"match": bool, "is_receipt": bool, "vendor": str, "total_price": str}}'
     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={GOOGLE_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]} # Speeding it up by not sending image again
+    payload = {"contents": [{"parts": [{"text": prompt}]}]} 
     
     try:
         resp = requests.post(gemini_url, json=payload).json()
+        
+        # Catch Gemini errors
+        if 'error' in resp:
+            print(f"🛑 Gemini Search Error: {resp['error'].get('message')}")
+            return None
+            
         text = resp['candidates'][0]['content']['parts'][0]['text']
         data = json.loads(text.replace('```json', '').replace('```', '').strip())
         
-        if not data.get('match'): return None
+        if not data.get('match'): 
+            return None
         
+        print(f"✅ Found Match: {photo_id}")
         return {
             "image_found": f"{user_id}/{photo_id}",
-            "image_url": image_url, # Now sending a permanent URL!
+            "image_url": image_url, 
             "is_receipt": data.get('is_receipt', False),
             "vendor": data.get('vendor', 'Unknown'),
-            "total_price": str(data.get('total_price', '0'))
+            "total_price": str(data.get('total_price', '0')),
+            # 👇 ADDED THIS BACK so Flutter has text to display 👇
+            "non_receipt_description": description 
         }
-    except: return None
+    except Exception as e:
+        print(f"🔥 Crash in verify_match: {e}")
+        return None
 
 @app.post("/search-and-extract")
 async def search_and_extract(user_id: str, request: SearchRequest):
+    print(f"🚀 Starting search for: {request.query}")
+    
     # Get all descriptions for this user from Supabase
     response = supabase.table("metadata").select("*").eq("user_id", user_id).execute()
     user_photos = response.data
+    
+    print(f"📁 Found {len(user_photos)} photos in database.")
     
     if not user_photos:
         return {"error": "No photos synced yet!"}
@@ -127,4 +138,5 @@ async def search_and_extract(user_id: str, request: SearchRequest):
             res = f.result()
             if res: results.append(res)
 
+    print(f"🎯 Returning {len(results)} results to phone.")
     return {"results": results}
