@@ -116,7 +116,7 @@ def verify_match(item, query):
             "vendor": data.get('vendor', 'Unknown'),
             "total_price": str(data.get('total_price', '0')),
             # 👇 ADDED THIS BACK so Flutter has text to display 👇
-            "non_receipt_description": description 
+            #"non_receipt_description": description 
         }
     except Exception as e:
         print(f"🔥 Crash in verify_match: {e}")
